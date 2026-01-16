@@ -15,12 +15,11 @@
         .loc-name { font-size: 32px; font-weight: bold; display: block; margin: 10px 0; }
         .btn-set { background: none; border: 1.5px solid var(--primary); color: var(--primary); padding: 6px 15px; border-radius: 10px; font-size: 14px; cursor: pointer; font-weight: bold; }
         
-        /* 管理面板 */
         #settings { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 100; padding: 20px; box-sizing: border-box; overflow-y: auto; }
         .admin-section { background: #f9f9f9; padding: 15px; border-radius: 15px; margin-bottom: 20px; }
         .admin-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; }
         .btn-del { color: #FF3B30; border: none; background: none; font-weight: bold; }
-        .btn-add { background: var(--primary); color: white; border: none; width: 100%; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; }
+        .btn-add { background: var(--primary); color: white; border: none; width: 100%; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; margin-top: 10px; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
@@ -37,38 +36,31 @@
 
 <div id="settings">
     <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h3>⚙️ 云端数据管理</h3>
+        <h3>⚙️ 数据管理</h3>
         <button onclick="toggleSettings(false)" style="color:var(--primary); border:none; background:none; font-size:16px; font-weight:bold;">关闭</button>
     </div>
     
     <div class="admin-section">
-        <p style="margin-top:0; font-weight:bold;">新增货位</p>
-        <input type="text" id="newSku" placeholder="输入 SKU" style="margin-bottom:10px;">
-        <select id="newLoc" style="width:100%; padding:12px; border-radius:10px; margin-bottom:10px; border:2px solid #E5E5EA;">
-            <option value="房间 1">房间 1</option>
-            <option value="房间 2">房间 2</option>
-            <option value="走廊">走廊</option>
-        </select>
+        <p style="margin-top:0; font-weight:bold;">新增/更新货位</p>
+        <input type="text" id="newSku" placeholder="输入 SKU (如: Y063)" style="margin-bottom:10px;">
+        <input type="text" id="newLoc" placeholder="输入具体地点 (如: 房间1-架子A)" style="margin-bottom:10px;">
         <button id="addBtn" class="btn-add" onclick="addItem()">同步到云端</button>
     </div>
-    <div id="managerList">加载中...</div>
+    <div id="managerList">正在同步云端列表...</div>
 </div>
 
 <script>
-    // 【在这里粘贴你复制的 Web 应用网址】
+    // 你的 Google Apps Script 网址
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzyPXZbnfBXg0oI9MzNXqCo6KMFUsiaaWfgJEL7Lb2Ppq4j5hURHNpZjmEiM_RefirJAQ/exec';
 
     let inventory = [];
 
-    // 从云端加载数据
     async function loadData() {
         try {
             const response = await fetch(SCRIPT_URL);
             inventory = await response.json();
             if (document.getElementById('settings').style.display === 'block') renderManager();
-        } catch (e) {
-            console.error("加载失败");
-        }
+        } catch (e) { console.error("加载失败"); }
     }
 
     loadData();
@@ -84,7 +76,7 @@
             res.innerHTML = `<div class="card">
                 <span style="font-size:14px">货号 ${val} 位于：</span>
                 <span class="loc-name">${locs}</span>
-                <span style="font-size:12px">✅ 全员数据已同步</span>
+                <span style="font-size:12px">✅ 云端同步成功</span>
             </div>`;
         } else {
             res.innerHTML = `<div class="card" style="background:#FFF4E5; border-color:#FF9500; color:#855D00;">
@@ -97,11 +89,11 @@
 
     async function addItem() {
         const sku = document.getElementById('newSku').value.trim();
-        const loc = document.getElementById('newLoc').value;
-        if(!sku) return;
+        const loc = document.getElementById('newLoc').value.trim(); // 获取手动输入的内容
+        if(!sku || !loc) { alert("请填入货号和地点"); return; }
         
         const btn = document.getElementById('addBtn');
-        btn.innerText = '正在同步...';
+        btn.innerText = '同步中...';
         btn.disabled = true;
 
         await fetch(SCRIPT_URL, {
@@ -112,11 +104,12 @@
         await loadData();
         btn.innerText = '同步成功！';
         document.getElementById('newSku').value = '';
+        document.getElementById('newLoc').value = '';
         setTimeout(() => { btn.innerText = '同步到云端'; btn.disabled = false; }, 2000);
     }
 
     async function deleteItem(sku) {
-        if(!confirm(`确定要在所有人手机中删除货号 ${sku} 吗？`)) return;
+        if(!confirm(`确认删除货号 ${sku} 吗？`)) return;
         await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({ action: 'delete', sku: sku })
@@ -131,7 +124,7 @@
 
     function renderManager() {
         const list = document.getElementById('managerList');
-        list.innerHTML = '<h4>当前云端库存一览</h4>' + inventory.map(item => `
+        list.innerHTML = '<h4>当前库存一览</h4>' + inventory.map(item => `
             <div class="admin-item">
                 <span><b>${item.loc}</b>: ${item.sku}</span>
                 <button class="btn-del" onclick="deleteItem('${item.sku}')">删除</button>

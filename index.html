@@ -11,8 +11,11 @@
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         input { width: 100%; padding: 15px; border: 2px solid #E5E5EA; border-radius: 12px; font-size: 18px; box-sizing: border-box; outline: none; }
         #result { margin-top: 20px; min-height: 120px; }
-        .card { padding: 20px; border-radius: 15px; text-align: center; background: #EAF9EE; border-left: 8px solid #34C759; color: #1A8335; animation: fadeIn 0.3s ease; }
-        .loc-name { font-size: 28px; font-weight: bold; display: block; margin: 10px 0; }
+        /* 成功找到的样式 */
+        .card-success { padding: 20px; border-radius: 15px; text-align: center; background: #EAF9EE; border-left: 8px solid #34C759; color: #1A8335; animation: fadeIn 0.3s ease; }
+        /* 未找到的样式 - 移除 432 仓库相关 */
+        .card-warning { padding: 20px; border-radius: 15px; text-align: center; background: #FFF4E5; border-left: 8px solid #FF9500; color: #855D00; animation: fadeIn 0.3s ease; }
+        .loc-name { font-size: 26px; font-weight: bold; display: block; margin: 10px 0; }
         .btn-set { background: none; border: 1.5px solid var(--primary); color: var(--primary); padding: 6px 15px; border-radius: 10px; font-size: 14px; cursor: pointer; font-weight: bold; }
         
         #settings { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 100; padding: 20px; box-sizing: border-box; overflow-y: auto; }
@@ -50,7 +53,6 @@
 </div>
 
 <script>
-    // 你的 Google Web 应用网址
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzyPXZbnfBXg0oI9MzNXqCo6KMFUsiaaWfgJEL7Lb2Ppq4j5hURHNpZjmEiM_RefirJAQ/exec';
 
     let inventory = [];
@@ -73,16 +75,16 @@
         const matches = inventory.filter(item => item.sku.toString().toUpperCase() === val);
         if(matches.length > 0) {
             const locs = matches.map(m => m.loc).join(" & ");
-            res.innerHTML = `<div class="card">
+            res.innerHTML = `<div class="card-success">
                 <span style="font-size:14px">货号 ${val} 位于：</span>
                 <span class="loc-name">${locs}</span>
                 <span style="font-size:12px">✅ 云端同步成功</span>
             </div>`;
         } else {
-            // 【修改处】这里改成了你要求的提示语
-            res.innerHTML = `<div class="card" style="background:#FFF4E5; border-color:#FF9500; color:#855D00;">
+            // 这里已经完全移除了“432号仓库”
+            res.innerHTML = `<div class="card-warning">
                 <span style="font-size:14px">未找到货号 ${val}</span>
-                <span class="loc-name" style="font-size:20px;">目前数据库未找到</span>
+                <span class="loc-name" style="font-size:20px; margin: 15px 0;">目前数据库未找到</span>
                 <span style="font-size:16px; font-weight:bold;">请确认在设置补充</span>
             </div>`;
         }

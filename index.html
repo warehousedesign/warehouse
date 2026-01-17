@@ -12,7 +12,7 @@
         input { width: 100%; padding: 15px; border: 2px solid #E5E5EA; border-radius: 12px; font-size: 18px; box-sizing: border-box; outline: none; }
         #result { margin-top: 20px; min-height: 120px; }
         .card { padding: 20px; border-radius: 15px; text-align: center; background: #EAF9EE; border-left: 8px solid #34C759; color: #1A8335; animation: fadeIn 0.3s ease; }
-        .loc-name { font-size: 32px; font-weight: bold; display: block; margin: 10px 0; }
+        .loc-name { font-size: 28px; font-weight: bold; display: block; margin: 10px 0; }
         .btn-set { background: none; border: 1.5px solid var(--primary); color: var(--primary); padding: 6px 15px; border-radius: 10px; font-size: 14px; cursor: pointer; font-weight: bold; }
         
         #settings { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 100; padding: 20px; box-sizing: border-box; overflow-y: auto; }
@@ -42,15 +42,15 @@
     
     <div class="admin-section">
         <p style="margin-top:0; font-weight:bold;">新增/更新货位</p>
-        <input type="text" id="newSku" placeholder="输入 SKU (如: Y063)" style="margin-bottom:10px;">
-        <input type="text" id="newLoc" placeholder="输入具体地点 (如: 房间1-架子A)" style="margin-bottom:10px;">
+        <input type="text" id="newSku" placeholder="输入 SKU" style="margin-bottom:10px;">
+        <input type="text" id="newLoc" placeholder="输入具体地点" style="margin-bottom:10px;">
         <button id="addBtn" class="btn-add" onclick="addItem()">同步到云端</button>
     </div>
     <div id="managerList">正在同步云端列表...</div>
 </div>
 
 <script>
-    // 你的 Google Apps Script 网址
+    // 你的 Google Web 应用网址
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzyPXZbnfBXg0oI9MzNXqCo6KMFUsiaaWfgJEL7Lb2Ppq4j5hURHNpZjmEiM_RefirJAQ/exec';
 
     let inventory = [];
@@ -79,17 +79,18 @@
                 <span style="font-size:12px">✅ 云端同步成功</span>
             </div>`;
         } else {
+            // 【修改处】这里改成了你要求的提示语
             res.innerHTML = `<div class="card" style="background:#FFF4E5; border-color:#FF9500; color:#855D00;">
-                <span style="font-size:14px">未找到记录，可能在：</span>
-                <span class="loc-name">432 号仓库</span>
-                <span style="font-size:12px">⚠️ 请核实货位</span>
+                <span style="font-size:14px">未找到货号 ${val}</span>
+                <span class="loc-name" style="font-size:20px;">目前数据库未找到</span>
+                <span style="font-size:16px; font-weight:bold;">请确认在设置补充</span>
             </div>`;
         }
     }
 
     async function addItem() {
         const sku = document.getElementById('newSku').value.trim();
-        const loc = document.getElementById('newLoc').value.trim(); // 获取手动输入的内容
+        const loc = document.getElementById('newLoc').value.trim();
         if(!sku || !loc) { alert("请填入货号和地点"); return; }
         
         const btn = document.getElementById('addBtn');
@@ -134,4 +135,3 @@
 </script>
 </body>
 </html>
-

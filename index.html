@@ -8,22 +8,37 @@
         :root { --primary: #007AFF; }
         body { font-family: -apple-system, sans-serif; background: #F2F2F7; padding: 15px; display: flex; justify-content: center; margin: 0; }
         .container { width: 100%; max-width: 450px; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 20px; }
+        
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        input { width: 100%; padding: 15px; border: 2px solid #E5E5EA; border-radius: 12px; font-size: 18px; box-sizing: border-box; outline: none; }
+        
+        /* 搜索框区域 */
+        .search-wrapper { position: relative; width: 100%; }
+        input[type="text"] { width: 100%; padding: 15px 45px 15px 15px; border: 2px solid #E5E5EA; border-radius: 12px; font-size: 18px; box-sizing: border-box; outline: none; transition: border-color 0.3s; }
+        input:focus { border-color: var(--primary); }
+        
+        /* 清空按钮样式 */
+        .clear-btn { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; background: #CECECF; color: white; border-radius: 50%; border: none; font-size: 16px; cursor: pointer; display: none; align-items: center; justify-content: center; line-height: 1; }
+        
         #result { margin-top: 20px; min-height: 120px; }
-        /* 成功找到的样式 */
-        .card-success { padding: 20px; border-radius: 15px; text-align: center; background: #EAF9EE; border-left: 8px solid #34C759; color: #1A8335; animation: fadeIn 0.3s ease; }
-        /* 未找到的样式 - 移除 432 仓库相关 */
+        
+        /* 成功找到的卡片列表样式 */
+        .card-success { padding: 15px; border-radius: 12px; text-align: left; background: #EAF9EE; border-left: 6px solid #34C759; color: #1A8335; margin-bottom: 10px; animation: fadeIn 0.3s ease; }
+        .sku-tag { font-size: 13px; background: rgba(0,0,0,0.06); padding: 2px 8px; border-radius: 4px; font-weight: bold; margin-bottom: 4px; display: inline-block; }
+        .loc-name { font-size: 22px; font-weight: bold; display: block; }
+        
+        /* 未找到的警告样式 */
         .card-warning { padding: 20px; border-radius: 15px; text-align: center; background: #FFF4E5; border-left: 8px solid #FF9500; color: #855D00; animation: fadeIn 0.3s ease; }
-        .loc-name { font-size: 26px; font-weight: bold; display: block; margin: 10px 0; }
+        
         .btn-set { background: none; border: 1.5px solid var(--primary); color: var(--primary); padding: 6px 15px; border-radius: 10px; font-size: 14px; cursor: pointer; font-weight: bold; }
         
+        /* 设置面板 */
         #settings { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 100; padding: 20px; box-sizing: border-box; overflow-y: auto; }
         .admin-section { background: #f9f9f9; padding: 15px; border-radius: 15px; margin-bottom: 20px; }
         .admin-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; }
-        .btn-del { color: #FF3B30; border: none; background: none; font-weight: bold; }
+        .btn-del { color: #FF3B30; border: none; background: none; font-weight: bold; font-size: 14px; }
         .btn-add { background: var(--primary); color: white; border: none; width: 100%; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; margin-top: 10px; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -33,91 +48,139 @@
         <h2 style="margin:0">🔍 货位查询</h2>
         <button class="btn-set" onclick="toggleSettings(true)">设置 / 管理</button>
     </div>
-    <input type="text" id="skuInput" placeholder="输入货号查询..." oninput="doSearch()">
+    
+    <div class="search-wrapper">
+        <input type="text" id="skuInput" placeholder="输入货号(如: sg) 自动联想..." oninput="handleInput()">
+        <button id="clearBtn" class="clear-btn" onclick="clearSearch()">×</button>
+    </div>
+    
     <div id="result"></div>
 </div>
 
 <div id="settings">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h3>⚙️ 数据管理</h3>
-        <button onclick="toggleSettings(false)" style="color:var(--primary); border:none; background:none; font-size:16px; font-weight:bold;">关闭</button>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h3 style="margin:0">⚙️ 数据管理</h3>
+        <button onclick="toggleSettings(false)" style="color:var(--primary); border:none; background:none; font-size:16px; font-weight:bold;">完成</button>
     </div>
     
     <div class="admin-section">
-        <p style="margin-top:0; font-weight:bold;">新增/更新货位</p>
-        <input type="text" id="newSku" placeholder="输入 SKU" style="margin-bottom:10px;">
-        <input type="text" id="newLoc" placeholder="输入具体地点" style="margin-bottom:10px;">
+        <p style="margin-top:0; font-weight:bold; font-size: 14px; color: #666;">新增或快速更新货位</p>
+        <input type="text" id="newSku" placeholder="输入 SKU" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; margin-bottom:10px; box-sizing:border-box;">
+        <input type="text" id="newLoc" placeholder="输入具体地点" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; margin-bottom:10px; box-sizing:border-box;">
         <button id="addBtn" class="btn-add" onclick="addItem()">同步到云端</button>
     </div>
-    <div id="managerList">正在同步云端列表...</div>
+    
+    <div id="managerList">正在同步云端数据...</div>
 </div>
 
 <script>
+    // 你的 Google Web 应用网址 (已保留你之前的正确网址)
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzyPXZbnfBXg0oI9MzNXqCo6KMFUsiaaWfgJEL7Lb2Ppq4j5hURHNpZjmEiM_RefirJAQ/exec';
 
     let inventory = [];
 
+    // 初始化加载
     async function loadData() {
         try {
             const response = await fetch(SCRIPT_URL);
             inventory = await response.json();
             if (document.getElementById('settings').style.display === 'block') renderManager();
-        } catch (e) { console.error("加载失败"); }
+        } catch (e) { 
+            console.error("加载失败:", e);
+        }
     }
 
     loadData();
 
+    // 处理输入逻辑
+    function handleInput() {
+        const input = document.getElementById('skuInput');
+        const clearBtn = document.getElementById('clearBtn');
+        
+        // 控制清空按钮显示/隐藏
+        clearBtn.style.display = input.value ? 'flex' : 'none';
+        
+        doSearch();
+    }
+
+    // 清空搜索
+    function clearSearch() {
+        const input = document.getElementById('skuInput');
+        input.value = '';
+        input.focus();
+        handleInput();
+    }
+
+    // 搜索逻辑 (模糊匹配)
     function doSearch() {
         const val = document.getElementById('skuInput').value.trim().toUpperCase();
         const res = document.getElementById('result');
         if(!val) { res.innerHTML = ''; return; }
 
-        const matches = inventory.filter(item => item.sku.toString().toUpperCase() === val);
+        // includes 实现联想匹配
+        const matches = inventory.filter(item => 
+            item.sku.toString().toUpperCase().includes(val)
+        );
+
         if(matches.length > 0) {
-            const locs = matches.map(m => m.loc).join(" & ");
-            res.innerHTML = `<div class="card-success">
-                <span style="font-size:14px">货号 ${val} 位于：</span>
-                <span class="loc-name">${locs}</span>
-                <span style="font-size:12px">✅ 云端同步成功</span>
-            </div>`;
+            // 支持显示多个联想结果
+            res.innerHTML = matches.map(m => `
+                <div class="card-success">
+                    <div class="sku-tag">SKU: ${m.sku}</div>
+                    <div class="loc-name">${m.loc}</div>
+                </div>
+            `).join('');
         } else {
-            // 这里已经完全移除了“432号仓库”
+            // 自定义未找到提示
             res.innerHTML = `<div class="card-warning">
-                <span style="font-size:14px">未找到货号 ${val}</span>
-                <span class="loc-name" style="font-size:20px; margin: 15px 0;">目前数据库未找到</span>
+                <span style="font-size:14px">未找到包含 "${val}" 的货号</span>
+                <span class="loc-name" style="font-size:20px; margin: 10px 0;">目前数据库未找到</span>
                 <span style="font-size:16px; font-weight:bold;">请确认在设置补充</span>
             </div>`;
         }
     }
 
+    // 云端添加
     async function addItem() {
         const sku = document.getElementById('newSku').value.trim();
         const loc = document.getElementById('newLoc').value.trim();
-        if(!sku || !loc) { alert("请填入货号和地点"); return; }
+        if(!sku || !loc) { alert("货号和地点都填一下哦"); return; }
         
         const btn = document.getElementById('addBtn');
         btn.innerText = '同步中...';
         btn.disabled = true;
 
-        await fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'add', sku: sku, loc: loc })
-        });
-
-        await loadData();
-        btn.innerText = '同步成功！';
-        document.getElementById('newSku').value = '';
-        document.getElementById('newLoc').value = '';
-        setTimeout(() => { btn.innerText = '同步到云端'; btn.disabled = false; }, 2000);
+        try {
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors', // 解决跨域可能导致的状态卡住
+                body: JSON.stringify({ action: 'add', sku: sku, loc: loc })
+            });
+            
+            // 因为 no-cors 拿不到返回结果，我们直接刷新数据
+            setTimeout(async () => {
+                await loadData();
+                btn.innerText = '同步成功！';
+                document.getElementById('newSku').value = '';
+                document.getElementById('newLoc').value = '';
+                setTimeout(() => { btn.innerText = '同步到云端'; btn.disabled = false; }, 1500);
+            }, 800);
+        } catch (e) {
+            alert("同步失败，请检查网络");
+            btn.disabled = false;
+            btn.innerText = '同步到云端';
+        }
     }
 
+    // 云端删除
     async function deleteItem(sku) {
-        if(!confirm(`确认删除货号 ${sku} 吗？`)) return;
+        if(!confirm(`确定要从全员手机中删除 ${sku} 吗？`)) return;
         await fetch(SCRIPT_URL, {
             method: 'POST',
+            mode: 'no-cors',
             body: JSON.stringify({ action: 'delete', sku: sku })
         });
-        loadData();
+        setTimeout(loadData, 800);
     }
 
     function toggleSettings(show) {
@@ -127,7 +190,11 @@
 
     function renderManager() {
         const list = document.getElementById('managerList');
-        list.innerHTML = '<h4>当前库存一览</h4>' + inventory.map(item => `
+        if(inventory.length === 0) {
+            list.innerHTML = '<p style="text-align:center; color:#999;">云端还没有数据</p>';
+            return;
+        }
+        list.innerHTML = '<h4>当前云端库存一览</h4>' + inventory.map(item => `
             <div class="admin-item">
                 <span><b>${item.loc}</b>: ${item.sku}</span>
                 <button class="btn-del" onclick="deleteItem('${item.sku}')">删除</button>

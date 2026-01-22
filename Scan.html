@@ -3,28 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>仓库核对助手-修复版</title>
+    <title>仓库核对助手-最终修复版</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 20px; background: #f4f7f9; text-align: center; }
-        #scan-form { margin-bottom: 15px; }
-        #scan-input { 
-            width: 90%; padding: 18px; font-size: 1.4rem; border: 2px solid #007bff; 
-            border-radius: 10px; outline: none; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .info-card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: left; }
+        #scan-input { width: 90%; padding: 18px; font-size: 1.4rem; border: 2px solid #007bff; border-radius: 10px; outline: none; }
+        .info-card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: left; margin-top: 20px; }
         #package-title { font-size: 1.3rem; font-weight: bold; color: #007bff; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
         .sku-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
-        .sku-name { font-size: 1.1rem; flex: 1; }
-        .status-icons { font-size: 1.6rem; flex: 1; text-align: right; letter-spacing: 5px; }
-        #loading-msg { color: #666; display: none; margin-bottom: 10px; }
+        .status-icons { font-size: 1.6rem; letter-spacing: 5px; }
     </style>
 </head>
 <body>
-    <h2>📦 扫码核对系统</h2>
-    <form id="scan-form" onsubmit="return false;">
-        <input type="text" id="scan-input" placeholder="请扫码面单或商品..." autocomplete="off" autofocus>
-    </form>
-    <div id="loading-msg">🔍 正在检索运单数据，请稍候...</div>
+    <h2>📦 仓库核对系统</h2>
+    <input type="text" id="scan-input" placeholder="请扫码面单或商品..." autofocus>
+    <div id="loading-msg" style="display:none; color: #666; margin: 10px;">🔍 正在深度检索单号...</div>
 
     <div id="display-area" class="info-card" style="display:none;">
         <div id="package-title">面单: <span id="current-tracking">---</span></div>
@@ -33,19 +25,17 @@
 
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycbz8QyB6qtMtgeVF3IVFfoL0wjLiFRRHjaoyOa48hRGlc_xecJbRhpHunih6vlUwr9CH7g/exec";
-        
         let taskData = [];
         let currentOrder = [];
         let currentTracking = "";
         const input = document.getElementById('scan-input');
-        const loading = document.getElementById('loading-msg');
 
+        // 自动聚焦，保护手指
         document.addEventListener('click', () => input.focus());
         setInterval(() => { if(document.activeElement !== input) input.focus(); }, 1000);
 
         input.addEventListener('keypress', async (e) => {
             if (e.key === 'Enter') {
-                e.preventDefault();
                 const val = input.value.trim();
                 input.value = '';
                 if (val) await handleScan(val);
@@ -53,61 +43,57 @@
         });
 
         async function handleScan(code) {
-            // 自动识别面单：GFUS开头或长度大于12位
-            if (code.startsWith("GFUS") || code.length > 12) {
-                loading.style.display = 'block';
+            // 只要单号包含 GFUS 或长度大于 10 就识别为面单
+            if (code.toUpperCase().includes("GFUS") || code.length > 10) {
+                document.getElementById('loading-msg').style.display = 'block';
                 try {
                     const res = await fetch(API_URL);
                     taskData = await res.json();
                     
-                    // 动态定位列索引
                     const headers = taskData[0];
-                    const trackingIdx = headers.indexOf("Tracking No");
-                    const skuIdx = headers.indexOf("Merchant SKU");
-                    const qtyIdx = headers.indexOf("Product Quantity");
+                    const tIdx = headers.indexOf("Tracking No");
+                    const sIdx = headers.indexOf("Merchant SKU");
+                    const qIdx = headers.indexOf("Product Quantity");
 
-                    if (trackingIdx === -1 || skuIdx === -1) {
-                        alert("错误：表格中找不到名为 'Tracking No' 或 'Merchant SKU' 的列！");
-                        return;
-                    }
-
-                    currentTracking = code;
-                    // 使用 trim() 消除数据中可能存在的不可见空格
-                    currentOrder = taskData.slice(1).filter(r => String(r[trackingIdx]).trim() === code).map(r => ({
-                        sku: String(r[skuIdx]).trim(), 
-                        qty: parseInt(r[qtyIdx] || 1), 
-                        scanned: 0, 
+                    // 核心修复：使用 .includes() 模糊匹配并强力去空格
+                    currentOrder = taskData.slice(1).filter(r => {
+                        const cellVal = String(r[tIdx]).replace(/\s/g, ''); // 去除表格中所有空格
+                        const scanVal = code.replace(/\s/g, ''); // 去除扫码枪所有空格
+                        return cellVal === scanVal || cellVal.includes(scanVal);
+                    }).map(r => ({
+                        sku: String(r[sIdx]).trim(),
+                        qty: parseInt(r[qIdx] || 1),
+                        scanned: 0,
                         icons: ""
                     }));
 
                     if (currentOrder.length > 0) {
+                        currentTracking = code;
                         document.getElementById('display-area').style.display = 'block';
                         document.getElementById('current-tracking').innerText = code;
                         render();
                         play("ting");
                     } else {
-                        alert("表格中未找到该单号: " + code + "\n请确认数据已粘贴到“任务表”中。");
+                        alert("找不到单号: " + code + "\n提示：请检查表格表头是否叫 'Tracking No'");
                     }
                 } catch (err) {
-                    alert("获取数据失败，请检查网络和API部署权限。");
+                    alert("网络请求失败");
                 } finally {
-                    loading.style.display = 'none';
+                    document.getElementById('loading-msg').style.display = 'none';
                 }
-            } 
-            else if (currentTracking) {
+            } else if (currentTracking) {
+                // SKU 匹配逻辑
                 let item = currentOrder.find(i => i.sku === code && i.scanned < i.qty);
                 if (item) {
                     item.scanned++;
                     item.icons += " ✅";
                     play("ting");
-                    log(code, "成功", "✅");
                     if (currentOrder.every(i => i.scanned >= i.qty)) speak("你真棒！");
                 } else {
                     if (navigator.vibrate) navigator.vibrate(400);
                     play("error");
                     let target = currentOrder.find(i => i.sku === code) || currentOrder[0];
                     target.icons += " ❌";
-                    log(code, "失败", "❌");
                 }
                 render();
             }
@@ -116,8 +102,8 @@
         function render() {
             document.getElementById('sku-list').innerHTML = currentOrder.map(i => `
                 <div class="sku-row">
-                    <div class="sku-name">${i.sku} (需${i.qty})</div>
-                    <div class="status-icons">${i.icons}</div>
+                    <span>${i.sku} (需${i.qty})</span>
+                    <span class="status-icons">${i.icons}</span>
                 </div>
             `).join('');
         }
@@ -132,14 +118,6 @@
             const m = new SpeechSynthesisUtterance(t);
             m.lang = 'zh-CN';
             window.speechSynthesis.speak(m);
-        }
-
-        function log(sku, res, det) {
-            fetch(API_URL, { 
-                method: 'POST', 
-                mode: 'no-cors', 
-                body: JSON.stringify({ tracking: currentTracking, sku: sku, status: res, detail: det })
-            });
         }
     </script>
 </body>

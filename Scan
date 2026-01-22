@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>仓库扫码核对助手</title>
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 20px; background: #f4f7f9; text-align: center; }
+        #scan-input { 
+            width: 90%; padding: 18px; font-size: 1.4rem; border: 2px solid #007bff; 
+            border-radius: 10px; margin-bottom: 15px; outline: none;
+        }
+        .info-card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: left; }
+        #package-title { font-size: 1.3rem; font-weight: bold; color: #007bff; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
+        .sku-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+        .sku-name { font-size: 1.1rem; flex: 1; }
+        .status-icons { font-size: 1.6rem; flex: 1; text-align: right; letter-spacing: 5px; }
+    </style>
+</head>
+<body>
+    <h2>📦 扫码核对系统</h2>
+    <input type="text" id="scan-input" placeholder="请扫码面单或商品..." autofocus>
+    <p style="color:#666; font-size:0.9rem;">手部扫码枪专用：无需点击，全自动对焦</p>
+
+    <div id="display-area" class="info-card" style="display:none;">
+        <div id="package-title">面单: <span id="current-tracking">---</span></div>
+        <div id="sku-list"></div>
+    </div>
+
+    <script>
+        const API_URL = "https://script.google.com/macros/s/AKfycbz8QyB6qtMtgeVF3IVFfoL0wjLiFRRHjaoyOa48hRGlc_xecJbRhpHunih6vlUwr9CH7g/exec";
+        let taskData = [];
+        let currentOrder = [];
+        let currentTracking = "";
+        const input = document.getElementById('scan-input');
+
+        // 自动聚焦逻辑，解放手指
+        document.addEventListener('click', () => input.focus());
+        setInterval(() => { if(document.activeElement !== input) input.focus(); }, 1000);
+
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleScan(input.value.trim());
+                input.value = '';
+            }
+        });
+
+        async function handleScan(code) {
+            if (code.length > 12) { // 识别为面单
+                const res = await fetch(API_URL);
+                taskData = await res.json();
+                currentTracking = code;
+                // 匹配表一结构
+                currentOrder = taskData.filter(r => r[2] == code).map(r => ({
+                    sku: r[1], qty: parseInt(r[3]), scanned: 0, icons: ""
+                }));
+                if (currentOrder.length > 0) {
+                    document.getElementById('display-area').style.display = 'block';
+                    document.getElementById('current-tracking').innerText = code;
+                    render();
+                    play("ting");
+                }
+            } else if (currentTracking) { // 识别为商品
+                let item = currentOrder.find(i => i.sku === code && i.scanned < i.qty);
+                if (item) {
+                    item.scanned++;
+                    item.icons += "✅"; // 正确显示对号
+                    play("ting");
+                    log(code, "成功", "✅");
+                    if (currentOrder.every(i => i.scanned >= i.qty)) speak("你真棒！");
+                } else {
+                    if (navigator.vibrate) navigator.vibrate(400); // 错误震动
+                    play("error");
+                    let target = currentOrder.find(i => i.sku === code) || currentOrder[0];
+                    target.icons += "❌"; // 错误显示叉号，且不消失
+                    log(code, "失败", "❌");
+                }
+                render();
+            }
+        }
+
+        function render() {
+            document.getElementById('sku-list').innerHTML = currentOrder.map(i => `
+                <div class="sku-row">
+                    <div class="sku-name">${i.sku} (需${i.qty})</div>
+                    <div class="status-icons">${i.icons}</div>
+                </div>
+            `).join('');
+        }
+
+        function play(type) {
+            const ting = new Audio('https://actions.google.com/sounds/v1/foley/beeps_short_confirm_cluster.ogg');
+            const err = new Audio('https://actions.google.com/sounds/v1/alarms/alarm_clock_short.ogg');
+            type === "ting" ? ting.play() : err.play();
+        }
+
+        function speak(t) {
+            const m = new SpeechSynthesisUtterance(t);
+            m.lang = 'zh-CN';
+            window.speechSynthesis.speak(m);
+        }
+
+        function log(sku, res, det) {
+            fetch(API_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({
+                tracking: currentTracking, sku: sku, status: res, detail: det
+            })});
+        }
+    </script>
+</body>
+</html>

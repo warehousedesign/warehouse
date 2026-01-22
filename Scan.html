@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>仓库核对助手-最终修复版</title>
+    <title>仓库核对助手-精准定位版</title>
     <style>
         body { font-family: sans-serif; margin: 0; padding: 20px; background: #f4f7f9; text-align: center; }
         #scan-input { width: 90%; padding: 18px; font-size: 1.4rem; border: 2px solid #007bff; border-radius: 10px; outline: none; }
@@ -14,9 +14,9 @@
     </style>
 </head>
 <body>
-    <h2>📦 仓库核对系统</h2>
+    <h2>📦 仓库精准核对系统</h2>
     <input type="text" id="scan-input" placeholder="请扫码面单或商品..." autofocus>
-    <div id="loading-msg" style="display:none; color: #666; margin: 10px;">🔍 正在深度检索单号...</div>
+    <div id="loading-msg" style="display:none; color: #666; margin: 10px;">🔍 正在根据表头定位数据...</div>
 
     <div id="display-area" class="info-card" style="display:none;">
         <div id="package-title">面单: <span id="current-tracking">---</span></div>
@@ -43,22 +43,29 @@
         });
 
         async function handleScan(code) {
-            // 只要单号包含 GFUS 或长度大于 10 就识别为面单
+            // 识别为面单
             if (code.toUpperCase().includes("GFUS") || code.length > 10) {
                 document.getElementById('loading-msg').style.display = 'block';
                 try {
                     const res = await fetch(API_URL);
                     taskData = await res.json();
                     
-                    const headers = taskData[0];
-                    const tIdx = headers.indexOf("Tracking No");
-                    const sIdx = headers.indexOf("Merchant SKU");
-                    const qIdx = headers.indexOf("Product Quantity");
+                    const headers = taskData[0].map(h => String(h).trim().toLowerCase());
+                    
+                    // 精准定位列名（不区分大小写，去除空格）
+                    const tIdx = headers.indexOf("tracking no");
+                    const sIdx = headers.indexOf("merchant sku");
+                    const qIdx = headers.indexOf("product quantity");
 
-                    // 核心修复：使用 .includes() 模糊匹配并强力去空格
+                    if (tIdx === -1) {
+                        alert("错误：在表格第一行没找到名为 'Tracking No' 的列！\n当前表头内容为: " + taskData[0].join(" | "));
+                        return;
+                    }
+
+                    // 匹配逻辑
+                    const scanVal = code.replace(/\s/g, '').toUpperCase();
                     currentOrder = taskData.slice(1).filter(r => {
-                        const cellVal = String(r[tIdx]).replace(/\s/g, ''); // 去除表格中所有空格
-                        const scanVal = code.replace(/\s/g, ''); // 去除扫码枪所有空格
+                        const cellVal = String(r[tIdx]).replace(/\s/g, '').toUpperCase();
                         return cellVal === scanVal || cellVal.includes(scanVal);
                     }).map(r => ({
                         sku: String(r[sIdx]).trim(),
@@ -74,7 +81,7 @@
                         render();
                         play("ting");
                     } else {
-                        alert("找不到单号: " + code + "\n提示：请检查表格表头是否叫 'Tracking No'");
+                        alert("找不到单号: " + code + "\n请检查该单号是否已填入 " + (tIdx + 1) + " 列中。");
                     }
                 } catch (err) {
                     alert("网络请求失败");
